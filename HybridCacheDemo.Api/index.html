@@ -1,0 +1,31 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Client Browser-store first approach</title>
+</head>
+<body>
+    <script>
+        async function getItem(id) {
+            const k = `item:${id}`;
+            const cached = localStorage.getItem(k);
+            const meta = JSON.parse(localStorage.getItem(k + ":meta") || "{}"); // { etag, ts }
+
+            const headers = {};
+            if (meta.etag) headers["If-None-Match"] = meta.etag;
+
+            const res = await fetch(`/api/items/${id}`, { headers });
+            if (res.status === 304 && cached) return JSON.parse(cached);
+
+            if (!res.ok) throw new Error("Request failed");
+            const etag = res.headers.get("ETag");
+            const data = await res.json();
+
+            localStorage.setItem(k, JSON.stringify(data));
+            localStorage.setItem(k + ":meta", JSON.stringify({ etag, ts: Date.now() }));
+            return data;
+        }
+    </script>
+
+</body>
+</html>
